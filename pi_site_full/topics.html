@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Topics – PI</title>
+<link rel="stylesheet" href="css/style.css">
+</head><body>
+
+<header>
+  <div class="logo"><img src="assets/logo.png" alt="PI logo"><span>PI</span></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="topics.html">Topics</a>
+    <a href="ask.html">Ask</a>
+    <a href="about.html">About</a>
+  </nav>
+  <div class="search-box"><input type="search" id="searchInput" disabled placeholder="Search questions…"></div>
+  <div class="avatar" id="accountBtn"><img src="assets/avatar.png" alt="Profile"></div>
+</header>
+  <!-- disable search for topics page -->
+<main style="display:block;max-width:800px;margin:1.5rem auto;">
+  <h2 style="margin-bottom:1rem;">All Topics</h2>
+  <ul style="line-height:2;">
+    <li><a href="topic_chemistry.html">Chemistry</a></li>
+    <li><a href="topic_physics.html">Physics</a></li>
+    <li><a href="topic_biology.html">Biology</a></li>
+    <li><a href="topic_math.html">Math</a></li>
+  </ul>
+</main>
+
+<footer>© <span id="year"></span> Progress Institute | PI 🌟</footer>
+
+<script>document.getElementById("year").textContent=new Date().getFullYear();</script>
+</body></html>

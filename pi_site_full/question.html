@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Question – PI</title>
+<link rel="stylesheet" href="css/style.css">
+</head><body>
+
+<header>
+  <div class="logo"><img src="assets/logo.png" alt="PI logo"><span>PI</span></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="topics.html">Topics</a>
+    <a href="ask.html">Ask</a>
+    <a href="about.html">About</a>
+  </nav>
+  <div class="search-box"><input type="search" id="searchInput" placeholder="Search questions…"></div>
+  <div class="avatar" id="accountBtn"><img src="assets/avatar.png" alt="Profile"></div>
+</header>
+
+<main style="max-width:800px;margin:1.5rem auto;">
+  <div class="card">
+    <h3>Sample Question Title</h3>
+    <div class="meta">Asked by Alex · 2h ago · Chemistry</div>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+  </div>
+  <h4>Answers</h4>
+  <div class="answer card"><strong>Dr. Bhatt:</strong> Example answer...</div>
+</main>
+
+<footer>© <span id="year"></span> Progress Institute | PI 🌟</footer>
+
+<script>
+document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+</body></html>

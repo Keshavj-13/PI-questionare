@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile – PI</title>
+<link rel="stylesheet" href="css/style.css">
+</head><body>
+
+<header>
+  <div class="logo"><img src="assets/logo.png" alt="PI logo"><span>PI</span></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="topics.html">Topics</a>
+    <a href="ask.html">Ask</a>
+    <a href="about.html">About</a>
+  </nav>
+  <div class="search-box"><input type="search" id="searchInput" disabled placeholder="Search questions…"></div>
+  <div class="avatar" id="accountBtn"><img src="assets/avatar.png" alt="Profile" id="profileImg" style="cursor:pointer;"></div>
+
+<!-- Login Modal Overlay -->
+<div class="modal" id="loginModal" style="display:none;">
+  <div class="modal-content login-modal-structured">
+    <div class="login-modal-header">
+      <img src="assets/logo.png" alt="PI logo" style="width:40px;height:40px;margin-bottom:0.5rem;">
+      <h3>Sign In Required</h3>
+    </div>
+    <div class="login-modal-body">
+      <p style="margin-bottom:1.2rem;">You must be signed in to view your profile.</p>
+      <div class="login-modal-actions">
+        <div id="g_id_onload"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="onGoogleSignIn"
+             data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="pill"
+             data-theme="outline"
+             data-text="sign_in_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+        <a href="login.html" class="btn-primary">Sign In / Log In</a>
+        <button class="btn-primary btn-secondary" id="closeLoginModal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+</header>
+
+<main style="display:block;max-width:800px;margin:1.5rem auto;">
+  <h2>Your Profile</h2>
+  <div id="profileInfo"></div>
+  <button id="logoutBtn" style="margin-top:2rem;min-width:120px;display:none;">Log Out</button>
+</main>
+
+<footer>© <span id="year"></span> Progress Institute | PI 🌟</footer>
+
+<script>
+// For testing: set user as signed in and teacher
+localStorage.setItem('user', JSON.stringify({
+  name: 'Test Teacher',
+  email: 'teacher@example.com',
+  picture: '',
+  sub: 'testsub',
+  role: 'teacher'
+}));
+document.getElementById("year").textContent = new Date().getFullYear();
+
+// Show user info and logout button if logged in, otherwise show login modal
+document.addEventListener('DOMContentLoaded', function() {
+  const user = localStorage.getItem('user');
+  const infoDiv = document.getElementById('profileInfo');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (user) {
+    const u = JSON.parse(user);
+    infoDiv.innerHTML = `
+      <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.2rem;">
+        <img src="${u.picture || 'assets/avatar.png'}" alt="Profile" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">
+        <div>
+          <div style="font-size:1.2rem;font-weight:600;">${u.name || ''}</div>
+          <div style="color:#666;">${u.email || ''}</div>
+        </div>
+      </div>
+    `;
+    logoutBtn.style.display = 'inline-block';
+    logoutBtn.onclick = function() {
+      localStorage.removeItem('user');
+      location.reload();
+    };
+  } else {
+    // Show login modal overlay
+    document.getElementById('loginModal').style.display = 'flex';
+    infoDiv.innerHTML = '';
+    logoutBtn.style.display = 'none';
+    // Optionally, block scrolling
+    document.body.style.overflow = 'hidden';
+    // Close modal logic
+    document.getElementById('closeLoginModal').onclick = function() {
+      document.getElementById('loginModal').style.display = 'none';
+      document.body.style.overflow = '';
+    };
+  }
+});
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  function onGoogleSignIn(response) {
+    // Decode JWT for demo (in production, verify on backend)
+    const base64Url = response.credential.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const user = JSON.parse(jsonPayload);
+    localStorage.setItem('user', JSON.stringify({
+      name: user.name,
+      email: user.email,
+      picture: user.picture,
+      sub: user.sub
+    }));
+    // Optionally update UI or reload
+    document.getElementById('loginModal').style.display = 'none';
+    document.body.style.overflow = '';
+    location.reload();
+  }
+</script>
+</body></html>
