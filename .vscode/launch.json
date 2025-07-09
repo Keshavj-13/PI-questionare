@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-QnaApplication<qna>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.pi.qna.QnaApplication",
+            "projectName": "qna",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

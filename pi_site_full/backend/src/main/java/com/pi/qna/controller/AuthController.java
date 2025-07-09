@@ -5,11 +5,11 @@ import com.pi.qna.dto.UserDto;
 import com.pi.qna.dto.TokenResponse;
 import com.pi.qna.entity.User;
 import com.pi.qna.service.UserService;
-import com.pi.qna.service.JwtTokenService;
+import com.pi.qna.security.JwtTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")

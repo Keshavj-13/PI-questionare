@@ -1,42 +1,56 @@
-
 const qs = (sel, p=document) => p.querySelector(sel);
 const qsa = (sel, p=document) => [...p.querySelectorAll(sel)];
 
-// Remove forced test login/teacher for production
-// window.localStorage.setItem('loggedIn', 'true');
-// window.localStorage.setItem('role', 'teacher');
-// window.localStorage.setItem('username', 'Test Teacher');
+// Auth helper
+const auth = {
+  token: localStorage.getItem('token'),
+  user: JSON.parse(localStorage.getItem('user') || 'null'),
+  headers() {
+    return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
+  },
+  isTeacher() {
+    return this.user?.role === 'TEACHER';
+  }
+};
+
+// Time formatting helper
+const formatTime = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = (now - date) / 1000; // in seconds
+  
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+};
 
 const App = (() => {
-  // State will be loaded from backend
-  const state = {questions: []};
+  const state = { questions: [] };
   const dom = {};
+  
   const cache = () => {
-    dom.feed = qs('#feed'); dom.modal=qs('#modal'); dom.askBtn=qs('#askBtn');
-    dom.cancelBtn=qs('#cancelBtn'); dom.postBtn=qs('#postBtn'); dom.questionInput=qs('#questionInput');
-    dom.search=qs('#searchInput'); dom.year=qs('#year'); dom.cats=qsa('.category'); dom.avatar=qs('#accountBtn');
+    dom.feed = qs('#feed'); 
+    dom.modal = qs('#modal'); 
+    dom.askBtn = qs('#askBtn');
+    dom.cancelBtn = qs('#cancelBtn'); 
+    dom.postBtn = qs('#postBtn'); 
+    dom.questionInput = qs('#questionInput');
+    dom.search = qs('#searchInput'); 
+    dom.year = qs('#year'); 
+    dom.cats = qsa('.category'); 
+    dom.avatar = qs('#accountBtn');
+    dom.questionTitle = qs('#questionTitle');
+    dom.questionContent = qs('#questionContent');
   };
+
   const render = list => {
-    // Only show answer form if user is logged in and is a teacher
-    const user = localStorage.getItem('user');
-    let isTeacher = false;
-    if (user) {
-      try {
-        const u = JSON.parse(user);
-        isTeacher = u.role === 'teacher';
-      } catch {}
-    }
-    // Helper to render answer with YouTube embed if present
-    function renderAnswer(a) {
-      const ytMatch = a.text.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
-      if (ytMatch) {
-        const vid = ytMatch[1];
-        return `<div class="answer"><strong>${a.author}:</strong><br><iframe width="320" height="180" src="https://www.youtube.com/embed/${vid}" frameborder="0" allowfullscreen style="margin:0.5rem 0;"></iframe></div>`;
-      }
-      return `<div class="answer"><strong>${a.author}:</strong> ${a.text}</div>`;
-    }
     dom.feed.innerHTML = list.map(q => {
-      const answerForm = isTeacher ? `
+      const imageTag = q.imageUrls?.length 
+        ? `<img src="${q.imageUrls[0]}" alt="Question" class="q-image">` 
+        : '';
+      
+      const answerForm = auth.isTeacher() ? `
         <form class="answer-form" data-qid="${q.id}" style="margin-top:0.7rem;">
           <div class="answer-form-row">
             <input type="text" class="answer-input" placeholder="Type your answer…" required />
@@ -44,123 +58,178 @@ const App = (() => {
           </div>
         </form>
       ` : '';
-      const imageTag = q.image ? `<img src="${q.image}" alt="Question image" style="max-width:100%;max-height:180px;margin:0.5rem 0;border-radius:0.7rem;" />` : '';
+      
       return `
       <div class="card">
-        <h3>${q.text}</h3>
-        ${imageTag}
-        <div class="meta">Asked by ${q.author} · ${q.time}</div>
-        <button class="btn-primary btn-secondary toggleAns">${q.answers.length} Answer${q.answers.length===1?'':'s'}</button>
-        <div class="answers" style="display:none;">${(q.answers||[]).map(renderAnswer).join('')}${answerForm}</div>
+        <a href="question.html?id=${q.id}" style="text-decoration:none;color:inherit">
+          <h3>${q.title}</h3>
+          ${imageTag}
+          <p>${q.content}</p>
+        </a>
+        <div class="meta">
+          ${q.author.username} · ${q.topic || 'General'} · ${formatTime(q.createdAt)}
+        </div>
+        <button class="btn-secondary toggleAns">
+          ${q.answerCount || 0} Answer${q.answerCount === 1 ? '' : 's'}
+        </button>
+        <div class="answers" style="display:none;">
+          ${(q.answers || []).map(ans => `
+            <div class="answer">
+              <strong>${ans.author.username}:</strong> 
+              ${ans.body}
+              <div class="meta">${formatTime(ans.createdAt)}</div>
+            </div>
+          `).join('')}
+          ${answerForm}
+        </div>
       </div>`;
     }).join('');
-    qsa('.toggleAns',dom.feed).forEach(b=>b.addEventListener('click',()=>{const a=b.nextElementSibling;a.style.display=a.style.display==='block'?'none':'block';}));
-    // Add answer form listeners if teacher
-    if (isTeacher) {
+    
+    // Attach event listeners
+    qsa('.toggleAns', dom.feed).forEach(b => {
+      b.addEventListener('click', () => {
+        const answers = b.nextElementSibling;
+        answers.style.display = answers.style.display === 'block' ? 'none' : 'block';
+      });
+    });
+    
+    // Teacher answer forms
+    if (auth.isTeacher()) {
       qsa('.answer-form', dom.feed).forEach(form => {
         form.addEventListener('submit', async e => {
           e.preventDefault();
-          const qid = form.getAttribute('data-qid');
+          const qid = form.dataset.qid;
           const input = form.querySelector('.answer-input');
-          const answerText = input.value.trim();
-          if (!answerText) return;
-          await postAnswer(qid, answerText);
-          input.value = '';
+          const body = input.value.trim();
+          if (!body) return;
+          
+          try {
+            const res = await fetch(`/api/questions/${qid}/answers`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                ...auth.headers()
+              },
+              body: JSON.stringify({ body })
+            });
+            
+            if (!res.ok) throw new Error('Failed to post answer');
+            input.value = '';
+            await fetchQuestions();
+          } catch (err) {
+            alert(err.message || 'Error posting answer');
+          }
         });
       });
     }
   };
-  // Post an answer to backend (or dummy)
-  const postAnswer = async (questionId, text) => {
-    const author = window.localStorage.getItem('username') || 'Teacher';
-    try {
-      const res = await fetch(`/api/questions/${questionId}/answers`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({text, author})
-      });
-      if (!res.ok) throw new Error('Failed to post answer');
-      await fetchQuestions();
-    } catch (e) {
-      // Fallback for demo: update dummyQuestions
-      const q = dummyQuestions.find(q => q.id == questionId);
-      if (q) {
-        q.answers = q.answers || [];
-        q.answers.push({author, text});
-        state.questions = dummyQuestions;
-        render(state.questions);
-      }
-    }
-  };
-  // Dummy questions for demo
-  const dummyQuestions = [
-    {id:1,author:'Alex',topic:'chemistry',text:'Why does ice float?',time:'2h ago',answers:[{author:'Dr. B',text:'Hydrogen bonds...'}]},
-    {id:2,author:'Samira',topic:'physics',text:'Speed vs velocity?',time:'5h ago',answers:[]}
-  ];
 
-  // Fetch questions from backend, fallback to dummy
+  // Fetch questions from backend
   const fetchQuestions = async () => {
     try {
       const res = await fetch('/api/questions');
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
-      state.questions = data;
+      if (!res.ok) throw new Error('Failed to fetch questions');
+      state.questions = await res.json();
       render(state.questions);
-    } catch (e) {
-      state.questions = dummyQuestions;
-      render(state.questions);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      dom.feed.innerHTML = '<div class="card">Failed to load questions. Try refreshing.</div>';
     }
   };
 
-  // Post a new question to backend
-  const postQuestion = async (text) => {
+  // Post new question
+  const postQuestion = async (title, content) => {
     try {
       const res = await fetch('/api/questions', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({text})
+        headers: { 
+          'Content-Type': 'application/json',
+          ...auth.headers()
+        },
+        body: JSON.stringify({ title, content })
       });
-      if (!res.ok) throw new Error('Failed to post');
+      
+      if (!res.ok) throw new Error('Failed to post question');
       await fetchQuestions();
-    } catch (e) {
-      alert('Could not post question.');
+      return true;
+    } catch (err) {
+      alert(err.message || 'Error posting question');
+      return false;
     }
   };
 
   const listen = () => {
-    dom.search && dom.search.addEventListener('input', () => {
-      const term=dom.search.value.toLowerCase();
-      render(state.questions.filter(q=>q.text.toLowerCase().includes(term)));
+    // Search functionality
+    dom.search?.addEventListener('input', () => {
+      const term = dom.search.value.toLowerCase();
+      render(state.questions.filter(q => 
+        q.title.toLowerCase().includes(term) || 
+        q.content.toLowerCase().includes(term)
+      ));
     });
-    dom.askBtn && dom.askBtn.addEventListener('click', ()=>{dom.modal.classList.add('active');dom.questionInput.focus();});
-    dom.cancelBtn && dom.cancelBtn.addEventListener('click', closeModal);
-    dom.modal && dom.modal.addEventListener('click',e=> {if(e.target===dom.modal)closeModal();});
-    dom.postBtn && dom.postBtn.addEventListener('click', ()=> {
-      const text=dom.questionInput.value.trim(); if(!text) return;
-      postQuestion(text);
-      closeModal();
+    
+    // Ask modal
+    dom.askBtn?.addEventListener('click', () => {
+      if (!auth.token) {
+        document.getElementById('loginModal').style.display = 'flex';
+        return;
+      }
+      dom.modal.classList.add('active');
+      dom.questionTitle.focus();
     });
-    dom.cats.forEach(c=>c.addEventListener('click',()=>{render(state.questions.filter(q=>q.topic===c.dataset.topic));}));
-    dom.avatar && dom.avatar.addEventListener('click', () => {
-      // Simulate login state: replace with real check in production
-      const loggedIn = window.localStorage.getItem('loggedIn') === 'true';
-      if (loggedIn) {
-        window.location.href = 'profile.html';
+    
+    // Modal controls
+    dom.cancelBtn?.addEventListener('click', () => {
+      dom.modal.classList.remove('active');
+      dom.questionTitle.value = '';
+      dom.questionContent.value = '';
+    });
+    
+    dom.modal?.addEventListener('click', e => {
+      if (e.target === dom.modal) dom.modal.classList.remove('active');
+    });
+    
+    dom.postBtn?.addEventListener('click', async () => {
+      const title = dom.questionTitle.value.trim();
+      const content = dom.questionContent.value.trim();
+      
+      if (!title || !content) {
+        alert('Please enter both title and content');
+        return;
+      }
+      
+      const success = await postQuestion(title, content);
+      if (success) {
+        dom.modal.classList.remove('active');
+        dom.questionTitle.value = '';
+        dom.questionContent.value = '';
+      }
+    });
+    
+    // Category filters
+    dom.cats?.forEach(c => c.addEventListener('click', () => {
+      const topic = c.dataset.topic;
+      render(state.questions.filter(q => q.topic === topic));
+    }));
+    
+    // Profile avatar
+    dom.avatar?.addEventListener('click', () => {
+      if (auth.token) {
+        location.href = 'profile.html';
       } else {
-        const loginModal = document.getElementById('loginModal');
-        if (loginModal) loginModal.style.display = 'flex';
-        const closeBtn = document.getElementById('closeLoginModal');
-        if (closeBtn) closeBtn.onclick = () => { loginModal.style.display = 'none'; };
+        document.getElementById('loginModal').style.display = 'flex';
       }
     });
   };
-  const closeModal = () => {dom.modal.classList.remove('active');dom.questionInput.value='';};
+
   const init = () => {
     cache();
     fetchQuestions();
     listen();
-    dom.year && (dom.year.textContent=new Date().getFullYear());
+    dom.year && (dom.year.textContent = new Date().getFullYear());
   };
-  return {init};
+
+  return { init };
 })();
+
 document.addEventListener('DOMContentLoaded', App.init);

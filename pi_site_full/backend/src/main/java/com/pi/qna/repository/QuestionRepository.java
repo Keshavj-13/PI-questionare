@@ -4,6 +4,8 @@ import com.pi.qna.entity.Question;
 import com.pi.qna.entity.User;
 import com.pi.qna.entity.Topic;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -18,4 +20,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     // Optional: search by title/content (case-insensitive)
     List<Question> findByTitleContainingIgnoreCase(String keyword);
+
+    Page<Question> findByTopicId(Long topicId, Pageable pageable);
+
 }

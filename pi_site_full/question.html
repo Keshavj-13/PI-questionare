@@ -1,35 +1,149 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Question – PI</title>
-<link rel="stylesheet" href="css/style.css">
-</head><body>
-
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Question – PI Q&A</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
 <header>
-  <div class="logo"><img src="assets/logo.png" alt="PI logo"><span>PI</span></div>
+  <div class="logo"><img src="assets/logo.png" alt="PI logo" /><span>PI</span></div>
   <nav>
     <a href="index.html">Home</a>
-    <a href="topics.html">Topics</a>
     <a href="ask.html">Ask</a>
-    <a href="about.html">About</a>
   </nav>
-  <div class="search-box"><input type="search" id="searchInput" placeholder="Search questions…"></div>
-  <div class="avatar" id="accountBtn"><img src="assets/avatar.png" alt="Profile"></div>
+  <input id="searchInput" type="search" disabled placeholder="Search…" class="answer-input" style="max-width:160px" />
+  <button id="accountBtn" class="btn-secondary">Account</button>
 </header>
 
-<main style="max-width:800px;margin:1.5rem auto;">
-  <div class="card">
-    <h3>Sample Question Title</h3>
-    <div class="meta">Asked by Alex · 2h ago · Chemistry</div>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-  </div>
-  <h4>Answers</h4>
-  <div class="answer card"><strong>Dr. Bhatt:</strong> Example answer...</div>
-</main>
+<main id="page" style="max-width:800px;margin:1.5rem auto; padding: 0 1rem"></main>
 
-<footer>© <span id="year"></span> Progress Institute | PI 🌟</footer>
+<footer style="text-align:center;padding:1rem;color:#666">© <span id="year"></span> PI</footer>
 
+<script src="js/app.js"></script>
 <script>
-document.getElementById("year").textContent = new Date().getFullYear();
+document.getElementById('year').textContent = new Date().getFullYear();
+
+function formatTime(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = (now - date) / 1000;
+  
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+function getId() {
+  const p = new URLSearchParams(location.search);
+  return p.get('id');
+}
+
+async function loadQuestion() {
+  const id = getId();
+  if (!id) {
+    document.getElementById('page').innerHTML = '<div class="card"><p>Question not found</p></div>';
+    return;
+  }
+  
+  try {
+    const [qRes, aRes] = await Promise.all([
+      fetch(`/api/questions/${id}`),
+      fetch(`/api/questions/${id}/answers`)
+    ]);
+    
+    if (!qRes.ok) throw new Error('Question not found');
+    
+    const question = await qRes.json();
+    const answers = aRes.ok ? await aRes.json() : [];
+    question.answers = answers;
+    
+    renderQuestion(question);
+  } catch (err) {
+    document.getElementById('page').innerHTML = `
+      <div class="card">
+        <p>Error: ${err.message}</p>
+      </div>
+    `;
+  }
+}
+
+function renderQuestion(q) {
+  const container = document.getElementById('page');
+  const img = q.imageUrls?.length ? `<img src="${q.imageUrls[0]}" class="q-image">` : '';
+  
+  const answersHTML = q.answers.map(ans => `
+    <div class="answer">
+      <strong>${ans.author.username}</strong>
+      <p>${ans.body}</p>
+      <div class="meta">${formatTime(ans.createdAt)}</div>
+    </div>
+  `).join('');
+  
+  const teacherForm = auth.isTeacher() ? `
+    <form id="answerForm" class="answer-form" style="margin-top:1rem">
+      <input class="answer-input" placeholder="Type your answer…" required>
+      <button class="btn-primary">Post Answer</button>
+    </form>
+  ` : '';
+  
+  container.innerHTML = `
+    <div class="card">
+      <h3>${q.title}</h3>
+      ${img}
+      <p>${q.content}</p>
+      <div class="meta">
+        ${q.author.username} · ${q.topic || 'General'} · ${formatTime(q.createdAt)}
+      </div>
+    </div>
+    <h4 style="margin:1rem 0 .6rem">Answers (${q.answers.length})</h4>
+    <div id="answerList">${answersHTML}</div>
+    ${teacherForm}`;
+  
+  // Handle answer submission
+  if (auth.isTeacher()) {
+    const answerForm = document.getElementById('answerForm');
+    answerForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const body = answerForm.querySelector('.answer-input').value.trim();
+      if (!body) return;
+      
+      try {
+        const res = await fetch(`/api/questions/${q.id}/answers`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...auth.headers()
+          },
+          body: JSON.stringify({ body })
+        });
+        
+        if (!res.ok) throw new Error('Failed to post answer');
+        
+        const newAns = await res.json();
+        document.getElementById('answerList').insertAdjacentHTML('beforeend', `
+          <div class="answer">
+            <strong>${auth.user.username}</strong>
+            <p>${body}</p>
+            <div class="meta">just now</div>
+          </div>
+        `);
+        answerForm.reset();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+  }
+  
+  // Account button handler
+  document.getElementById('accountBtn').onclick = () => {
+    location.href = auth.token ? 'profile.html' : 'login.html';
+  };
+}
+
+loadQuestion();
 </script>
-</body></html>
+</body>
+</html>

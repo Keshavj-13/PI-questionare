@@ -1,2 +1,7 @@
-package com.pi.qna.entity;public class Role {
+package com.pi.qna.entity;
+
+public enum Role {
+    STUDENT,
+    TEACHER,
+    ADMIN
 }

@@ -1,39 +1,78 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign Up – PI</title>
-<link rel="stylesheet" href="css/style.css">
-</head><body>
-
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up – PI Q&A</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
 <header>
-  <div class="logo"><img src="assets/logo.png" alt="PI logo"><span>PI</span></div>
+  <div class="logo">
+    <img src="assets/logo.png" alt="PI logo" />
+    <span>PI</span>
+  </div>
   <nav>
     <a href="index.html">Home</a>
     <a href="topics.html">Topics</a>
     <a href="ask.html">Ask</a>
     <a href="about.html">About</a>
   </nav>
-  <div class="search-box"><input type="search" id="searchInput" disabled placeholder="Search questions…"></div>
-  <div class="avatar" id="accountBtn"><img src="assets/avatar.png" alt="Profile"></div>
+  <input id="searchInput" type="search" placeholder="Search…" class="answer-input" disabled />
+  <button id="accountBtn" class="btn-secondary">Login</button>
 </header>
 
-<main style="display:block;max-width:400px;margin:1.5rem auto;">
-  <h2 style="margin-bottom:1rem;">Sign Up</h2>
-  <form id="signupForm">
-    <input type="text" placeholder="Full name" required style="width:100%;padding:0.6rem;margin-bottom:0.75rem;border:1px solid var(--clr-border);border-radius:var(--radius);">
-    <input type="email" placeholder="Email" required style="width:100%;padding:0.6rem;margin-bottom:0.75rem;border:1px solid var(--clr-border);border-radius:var(--radius);">
-    <input type="password" placeholder="Password" required style="width:100%;padding:0.6rem;margin-bottom:0.75rem;border:1px solid var(--clr-border);border-radius:var(--radius);">
-    <button class="btn-primary" style="width:100%;">Create Account</button>
+<main style="max-width:400px;margin:1.8rem auto; padding: 0 1rem">
+  <h2 style="margin-bottom:1rem;">Create an account</h2>
+  <form id="signupForm" class="card">
+    <input name="username" placeholder="Username" required class="answer-input" style="width:100%;margin:.5rem 0" />
+    <input name="password" type="password" placeholder="Password" required class="answer-input" style="width:100%;margin:.5rem 0" />
+    <button class="btn-primary" style="width:100%;margin-top:.6rem">Sign Up</button>
   </form>
-  <p style="margin-top:0.75rem;">Already registered? <a href="login.html">Login</a></p>
+  <p style="margin-top:.9rem">Already have an account? <a href="login.html">Login</a></p>
 </main>
 
-<footer>© <span id="year"></span> Progress Institute | PI 🌟</footer>
+<footer style="text-align:center;padding:1rem 0;color:#666">© <span id="year"></span> PI</footer>
 
 <script>
-document.getElementById("year").textContent = new Date().getFullYear();
-document.getElementById("signupForm").addEventListener("submit", function(e) {
+document.getElementById('year').textContent = new Date().getFullYear();
+
+const form = document.getElementById('signupForm');
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  window.location.href = "profile.html";
+  const username = form.username.value.trim();
+  const password = form.password.value.trim();
+  
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    if (!res.ok) throw new Error(await res.text() || 'Signup failed');
+    
+    const data = await res.json();
+    localStorage.setItem('token', data.token);
+    
+    // Extract user info from token
+    const payload = JSON.parse(atob(data.token.split('.')[1]));
+    localStorage.setItem('user', JSON.stringify({ 
+      username: payload.username, 
+      role: payload.role,
+      id: payload.sub
+    }));
+    
+    location.href = 'profile.html';
+  } catch (err) {
+    alert(err.message || 'Could not create account');
+  }
 });
-</script></body></html>
+
+// Login button handler
+document.getElementById('accountBtn').onclick = () => {
+  location.href = 'login.html';
+};
+</script>
+</body>
+</html>
